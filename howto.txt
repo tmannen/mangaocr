@@ -1,0 +1,12 @@
+%load imports.py
+%load testing.py
+%load panel.py
+
+plot_img(merged, image)
+save_text(image, merged)
+
+import pytesseract
+print(pytesseract.image_to_string(Image.open('fuwa.jpg')))
+
+texts = get_texts(image, merged)
+print(pytesseract.image_to_string(texts[15], config="-psm 7"))
