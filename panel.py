@@ -1,17 +1,4 @@
-def get_area(region, image):
-	top = region.bbox[0]
-	left = region.bbox[1]
-	bottom = region.bbox[2]
-	right = region.bbox[3]
-	return image[top:bottom,left:right]
-
-def get_std(region, image):
-	top = region.bbox[0]
-	left = region.bbox[1]
-	bottom = region.bbox[2]
-	right = region.bbox[3]
-	area = get_area(region, image)
-	return np.std(area)
+from testing import *
 
 img = Image.open("fuwa.jpg").convert("L")
 image = np.array(img)
@@ -19,7 +6,7 @@ image = np.array(img)
 values = get_regions(image)
 letters = check_letters(values[0], values[1], values[2])
 firstletters = first_letters(values[0], letters)
-merged = merge_regions(values[0], firstletters, letters)
+new_label_image, merged = merge_regions(values[0], firstletters, letters)
 
 #from skimage.transform import rotate
 #plt.imshow(rotate(get_area(merged[5], image), 90, resize=True), cmap=plt.cm.gray)

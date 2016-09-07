@@ -1,3 +1,31 @@
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import math
+
+from PIL import Image
+import numpy as np
+
+from skimage import data
+from skimage.filters import threshold_otsu
+from skimage.segmentation import clear_border
+from skimage.measure import label
+from skimage.morphology import closing, square
+from skimage.measure import regionprops
+from skimage.color import label2rgb
+from skimage import io, color
+
+from skimage.morphology import erosion, dilation, opening, closing, white_tophat
+from skimage.morphology import black_tophat, skeletonize, convex_hull_image
+from skimage.morphology import disk, square
+
+def get_area(region, image):
+	top = region.bbox[0]
+	left = region.bbox[1]
+	bottom = region.bbox[2]
+	right = region.bbox[3]
+	return image[top:bottom,left:right]
+
 def plot_img(regions, image):
 	fig, ax = plt.subplots(ncols=1, nrows=1)
 	ax.imshow(image, cmap=plt.cm.gray)
@@ -57,13 +85,12 @@ def get_regions(img):
 	#bw = closing(image < thresh, square(3))
 	bw = image < thresh
 	label_image = label(bw, background=255)
-	regions = [rgn for rgn in regionprops(label_image) if rgn.area > 15 
-				and rgn.area < 500
-				and get_std(rgn, image) > 85]
+	regions = [rgn for rgn in regionprops(label_image)
+				if rgn.area > 20 and np.std(get_area(rgn, image)) > 90]
 	heightmap = {rgn.label : rgn.bbox[2]-rgn.bbox[0] for rgn in regions}
 	return [label_image, regions, heightmap]
 
-#def check_overlap: kato ku addaat letterit, niin että teet 
+#def check_overlap: kato ku addaat letterit, niin etta teet 
 #label imagen jossa lasket kuina moneen osuu bbox ja sitten vertaat
 #centroid
 
@@ -89,6 +116,31 @@ def merge_regions(label_image, firstletters, letters):
 
 		for label in regions:
 			new_label_image[label_image==label] = letter.label
+
+	return new_label_image, regionprops(new_label_image)
+
+#yhdista saadut linet
+def clump_lines(label_image, lines):
+	new_label_image = np.zeros_like(label_image)
+	for line in lines:
+		regions = set()
+		bbox = np.array(line.bbox)
+		height = bbox[3] - bbox[1] + 5
+		check_down = bbox + (height, 0, height, 0)
+		overlaps = np.unique(label_image[check_down[0]:check_down[2],check_down[1]:check_down[3]])
+		
+		while True:
+			intersection = [x for x in overlaps if x!=0]
+			if len(intersection) <= 0:
+				break
+
+			regions.add(line.label)
+			for label in intersection: regions.add(label)
+			check_down += (height, 0, height, 0)
+			overlaps = np.unique(label_image[check_down[0]:check_down[2],check_down[1]:check_down[3]])
+
+		for label in regions:
+			new_label_image[label_image==label] = line.label
 
 	return regionprops(new_label_image)
 
