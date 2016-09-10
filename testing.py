@@ -20,10 +20,7 @@ from skimage.morphology import black_tophat, skeletonize, convex_hull_image
 from skimage.morphology import disk, square
 
 def get_area(region, image):
-	top = region.bbox[0]
-	left = region.bbox[1]
-	bottom = region.bbox[2]
-	right = region.bbox[3]
+	top, left, bottom, right = region.bbox
 	return image[top:bottom,left:right]
 
 def plot_img(regions, image):
@@ -31,9 +28,6 @@ def plot_img(regions, image):
 	ax.imshow(image, cmap=plt.cm.gray)
 
 	for region in regions:
-
-	    # skip small image
-
 	    minr, minc, maxr, maxc = region.bbox
 	    rect = mpatches.Rectangle((minc, minr), maxc - minc, maxr - minr,
 	                              fill=False, edgecolor='red', linewidth=1)
@@ -41,14 +35,20 @@ def plot_img(regions, image):
 
 	plt.show()
 
+def get_ccs(image):
+	bw = image < 100
+	label_image = label(bw)
+	return regionprops(label_image)
+
+
 def check_letters(label_image, regions, heightmap):
 	letters = {}
 	for region in regions:
 		bbox = np.array(region.bbox)
 		height = bbox[2] - bbox[0]
 		width = bbox[3] - bbox[1]
-		areas = [(-height, 0, -height, 0), (height, 0, height, 0),
-				(0, width, 0, width), (0, -width, 0, -width)]
+		#check only left and right for now
+		areas = [(0, width, 0, width), (0, -width, 0, -width)]
 
 		for area in areas:
 			check = bbox + area
@@ -76,19 +76,22 @@ def first_letters(label_image, letters):
 		right_labels = set(np.unique(label_image[check_right[0]:check_right[2],check_right[1]:check_right[3]]))
 		if left_labels.isdisjoint(letter_labels) and not right_labels.isdisjoint(letter_labels):
 			firstletters.add(region)
-
 	return firstletters
 
-def get_regions(img):
-	image = np.array(img)
+def get_regions(image):
 	thresh = threshold_otsu(image)
-	#bw = closing(image < thresh, square(3))
+	x, y = image.shape
+	maxheight = float(y/15)
+	#grayscale image, so 255=white, 0=black. binarize for labeling, 0 (False) considered background:
 	bw = image < thresh
-	label_image = label(bw, background=255)
-	regions = [rgn for rgn in regionprops(label_image)
-				if rgn.area > 20 and np.std(get_area(rgn, image)) > 90]
+	label_image = label(bw)
+	regions = [rgn for rgn in regionprops(label_image)]
+
 	heightmap = {rgn.label : rgn.bbox[2]-rgn.bbox[0] for rgn in regions}
-	return [label_image, regions, heightmap]
+	return {'labeled_image': label_image,
+		    'regions': regions,
+		    'heightmap': heightmap
+		    }
 
 #def check_overlap: kato ku addaat letterit, niin etta teet 
 #label imagen jossa lasket kuina moneen osuu bbox ja sitten vertaat
@@ -161,3 +164,33 @@ def save_text(image, regions):
 def get_texts(image, regions):
 	pilimg = Image.fromarray(image)
 	return [crop_area(pilimg, region.bbox, 1) for region in regions]
+
+def edge_density_variation(region, image):
+	pass
+
+def save_parameters(regions, image, filename):
+	with open(filename, "a") as datafile:
+		csvrow = None
+		#area, bbox, convex_area, eccentricity, equivalent_diameter
+		#euler number, extent, filled_area, major_axis_length, minor_axis_length
+		#moments, moments_central, moments_hu, moments_normalized, orientation
+		#perimeter, solidity
+		for region in regions:
+			width = region.bbox[2] - region.bbox[0]
+			height = region.bbox[3] - region.bbox[1]
+			area = region.area
+			carea = region.convex_area
+			ecc = region.eccentricity
+			eq_dia = region.equivalent_diameter
+			en = region.euler_number
+			extent = region.extent
+			farea = region.filled_area
+			mal = region.major_axis_length
+			mil = region.minor_axis_length
+			moments = region.moments
+			moments_n = region.moments_normalized
+			moments_hu = region.moments_hu
+			ori = region.orientation
+			peri = region.perimeter
+			soli = region.solidity
+			csvrow = ",".join([prop for prop in region])

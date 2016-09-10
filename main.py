@@ -1,3 +1,5 @@
+##TODO: tsekkaa thresholding että black ja white, pitikö olla pienempi vai suurempi?
+
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -19,4 +21,6 @@ from skimage.morphology import erosion, dilation, opening, closing, white_tophat
 from skimage.morphology import black_tophat, skeletonize, convex_hull_image
 from skimage.morphology import disk, square
 
-print("Imported")
+from testing import *
+
+img = Image.open("data/Onepiece/05.png").convert("L")
