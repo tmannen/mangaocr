@@ -1,6 +1,6 @@
 from testing import *
 
-img = Image.open("fuwa.jpg").convert("L")
+img = Image.open("data/fuwa.jpg").convert("L")
 image = np.array(img)
 
 values = get_regions(image)

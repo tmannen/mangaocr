@@ -5,6 +5,7 @@ import math
 
 from PIL import Image
 import numpy as np
+import os
 
 from skimage import data
 from skimage.filters import threshold_otsu
@@ -36,9 +37,12 @@ def plot_img(regions, image):
 	plt.show()
 
 def get_ccs(image):
-	bw = image < 100
+	thresh = threshold_otsu(image)
+	bw = image < thresh
 	label_image = label(bw)
-	return regionprops(label_image)
+	props = regionprops(label_image)
+	for prop in props: prop.orig_image = image
+	return props
 
 
 def check_letters(label_image, regions, heightmap):
@@ -168,16 +172,49 @@ def get_texts(image, regions):
 def edge_density_variation(region, image):
 	pass
 
-def save_parameters(regions, image, filename):
+def get_parameters(region, image):
+	width = region.bbox[2] - region.bbox[0]
+	height = region.bbox[3] - region.bbox[1]
+	aspect_ratio = width/float(height)
+	std = np.std(get_area(region, image))
+	carea_area_ratio = region.convex_area/region.area
+	ecc = region.eccentricity
+	ori = region.orientation
+	soli = region.solidity
+	moments_hu = [mom for mom in region.moments_hu.flatten()]
+	paralist = moments_hu+[carea_area_ratio, ori, soli, aspect_ratio, std, ecc]
+	return np.array(paralist).reshape(1, -1)
+
+def classify(region, image, classifier):
+	pars = get_parameters(region, image)
+	probs = classifier.predict_proba(pars)
+	neg, pos = probs[0, 0], probs[0, 1]
+	if pos > 0.2: return 1
+	else: return 0
+
+def save_parameters(regions, filename, positive):
+	if not os.path.isfile(filename):
+		with open(filename, "w") as datafile:
+			region = regions[0]
+			moments = region.moments
+			moments_str = ["moment" + str(ind) for ind, x in enumerate(moments.flatten())]
+			moments_n = region.moments_normalized
+			moments_n_str = ["moment_norm" + str(ind) for ind, x in enumerate(moments_n.flatten())]
+			moments_hu = region.moments_hu
+			moments_hu_str = ["moment_hu" + str(ind) for ind, x in enumerate(moments_hu.flatten())]
+			csvstring = ",".join(["width", "height", "aspect_r", "std", "area", "convex_area",
+				"eccentricity", "equi_diameter", "euler_n", "extent", "filled_area",
+				"major_axis_length", "minor_axis_length", "orientation", "perimeter", "solidity"]
+				+moments_str+moments_n_str+moments_hu_str+["y"]
+				)
+			datafile.write(csvstring+"\n")
+
 	with open(filename, "a") as datafile:
-		csvrow = None
-		#area, bbox, convex_area, eccentricity, equivalent_diameter
-		#euler number, extent, filled_area, major_axis_length, minor_axis_length
-		#moments, moments_central, moments_hu, moments_normalized, orientation
-		#perimeter, solidity
 		for region in regions:
 			width = region.bbox[2] - region.bbox[0]
 			height = region.bbox[3] - region.bbox[1]
+			aspect_ratio = width/float(height)
+			std = np.std(get_area(region, region.orig_image))
 			area = region.area
 			carea = region.convex_area
 			ecc = region.eccentricity
@@ -187,10 +224,14 @@ def save_parameters(regions, image, filename):
 			farea = region.filled_area
 			mal = region.major_axis_length
 			mil = region.minor_axis_length
-			moments = region.moments
-			moments_n = region.moments_normalized
-			moments_hu = region.moments_hu
 			ori = region.orientation
 			peri = region.perimeter
 			soli = region.solidity
-			csvrow = ",".join([prop for prop in region])
+			moments = [str(mom) for mom in region.moments.flatten()]
+			moments_n = [str(mom) for mom in region.moments_normalized.flatten()]
+			moments_hu = [str(mom) for mom in region.moments_hu.flatten()]
+			y = 1 if positive else 0
+			paralist = [width, height, aspect_ratio, std, area, carea, ecc, eq_dia,en,extent
+			,farea,mal,mil,ori,peri,soli]+moments+moments_n+moments_hu+[str(y)]
+			csvrow = ",".join([str(x) for x in paralist])
+			datafile.write(csvrow+"\n")
