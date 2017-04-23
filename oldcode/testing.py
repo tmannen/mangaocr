@@ -68,18 +68,19 @@ def check_letters(label_image, regions, heightmap):
 	return letters
 
 def first_letters(label_image, letters):
-	firstletters = set()
+	firstletters = list()
 	letter_labels = set(letters.keys())
 	for key, region in letters.items():
 		bbox = np.array(region.bbox)
 		width = bbox[3] - bbox[1]
 		height = bbox[2] - bbox[0]
-		check_left = bbox + (0, -height, 0, -width)
+		check_left = bbox - (0, height, 0, width)
 		check_right = bbox + (0, width, 0, height)
 		left_labels = set(np.unique(label_image[check_left[0]:check_left[2],check_left[1]:check_left[3]]))
 		right_labels = set(np.unique(label_image[check_right[0]:check_right[2],check_right[1]:check_right[3]]))
 		if left_labels.isdisjoint(letter_labels) and not right_labels.isdisjoint(letter_labels):
-			firstletters.add(region)
+			firstletters.append(region)
+
 	return firstletters
 
 def get_regions(image):
